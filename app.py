@@ -32,8 +32,12 @@ REVIEW_KEYS = {
 
 def create_app(test_config=None):
     app = Flask(__name__, template_folder=str(ROOT), static_folder=None)
-    instance = Path(app.instance_path)
+    
+# Directorio temporal con permisos de escritura en Vercel
+    instance = Path("/tmp") / "tribuanalisis_semana12"
+    app.instance_path = str(instance)
     instance.mkdir(parents=True, exist_ok=True)
+
     key_path = instance / ".session-key"
     if test_config is None:
         try:
