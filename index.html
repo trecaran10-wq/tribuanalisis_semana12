@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#702d43">
+  <meta name="csrf-token" content="{{ csrf }}">
+  <title>Tribuanálisis | Semana 12</title>
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/calculation.js"></script>
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <svg class="icon-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10 12 3l9 7M5 9v11h14V9M9 20v-7h6v7"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 3"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7V5h7l2 2h8v3M3 19l2-9h16l-2 9z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M5 2h9l5 5v15H5zM14 2v5h5M8 12h8M8 16h8"/></symbol>
+    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+    <symbol id="i-exit" viewBox="0 0 24 24"><path d="M10 4H4v16h6M13 8l4 4-4 4M8 12h12"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m3 12 6 6L21 5"/></symbol>
+    <symbol id="i-warning" viewBox="0 0 24 24"><path d="M12 3 2 21h20L12 3ZM12 9v5M12 18v.1"/></symbol>
+    <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 4 16 4 16 0V5M4 10c0 4 16 4 16 0M4 15c0 4 16 4 16 0"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><path d="m12 12 8-8M17 3h4v4"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 20c-2-2-5-3-9-3V4c4 0 7 1 9 3 2-2 5-3 9-3v13c-4 0-7 1-9 3ZM12 7v13"/></symbol>
+    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 6-3 7-3 9h18c0-2-3-3-3-9M10 21h4"/></symbol>
+    <symbol id="i-briefcase" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M9 6V3h6v3M3 12l9 3 9-3"/></symbol>
+    <symbol id="i-screen" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="13" rx="1"/><path d="M2 20h20M12 16v4"/></symbol>
+    <symbol id="i-lab" viewBox="0 0 24 24"><path d="M9 3h6M10 3v7L4 20h16l-6-10V3M7 16h10"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="m3 7 9-4 9 4-9 4-9-4ZM3 7v10l9 4 9-4V7M12 11v10"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 21h18M5 18v-6h3v6M10 18V8h3v10M15 18V3h3v15"/></symbol>
+    <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20v-1a6 6 0 0 1 12 0v1M16 5a3 3 0 0 1 0 6M18 14a5 5 0 0 1 3 5v1"/></symbol>
+    <symbol id="i-calc" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M7 5h10v4H7zM8 13h1M12 13h1M16 13h1M8 17h1M12 17h1M16 17h1"/></symbol>
+  </defs></svg>
+  <header class="topbar">
+    <a class="brand" href="#inicio"><span class="brand-mark">T</span><span><strong>tribuanálisis</strong><small>TRIBUTACIÓN EMPRESARIAL</small></span></a>
+    <div class="topbar-right"><span class="top-label" id="account-email"></span><a class="header-icon" href="#inicio" id="notice-link" aria-label="Ver estado de cumplimiento"><svg><use href="#i-bell"/></svg></a><span class="week-badge">Semana 12</span><a class="account-link" href="#perfil" aria-label="Abrir perfil y créditos"><span id="header-initials">U</span>⌄</a></div>
+  </header>
+
+  <div class="app-layout">
+    <aside class="app-sidebar">
+      <div class="sidebar-week">SEMANA 12</div>
+      <div class="sidebar-caption">ESPACIO DE TRABAJO</div>
+      <nav class="app-nav" aria-label="Menú principal">
+        <a href="#inicio" data-view="inicio" aria-current="page"><svg><use href="#i-home"/></svg> Inicio / Dashboard</a>
+        <a href="#registro" data-view="registro"><svg><use href="#i-plus"/></svg> Nuevo análisis</a>
+        <a href="#historial" data-view="historial"><svg><use href="#i-clock"/></svg> Historial de casos</a>
+        <a href="#mis-casos" data-view="mis-casos"><svg><use href="#i-folder"/></svg> Mis casos</a>
+        <a href="#informe" data-view="informe"><svg><use href="#i-file"/></svg> Informe de reparos</a>
+        <a href="#guia" data-view="guia"><svg><use href="#i-book"/></svg> Guía tributaria</a>
+        <a href="#perfil" data-view="perfil"><svg><use href="#i-user"/></svg> Perfil y créditos</a>
+      </nav>
+      <form class="sidebar-logout" action="/logout" method="post"><input type="hidden" name="csrf" value="{{ csrf }}"><button type="submit"><svg><use href="#i-exit"/></svg> Cerrar sesión</button></form>
+      <div class="sidebar-waves" aria-hidden="true"></div>
+    </aside>
+
+    <main class="app-main">
+      <section class="app-view home-view" id="inicio" aria-labelledby="home-title">
+        <div class="home-heading"><h1 id="home-title">Inicio / Dashboard</h1><p>Resumen general del análisis de gastos empresariales.</p></div>
+        <div class="home-hero-grid">
+          <div class="home-hero"><div class="home-hero-copy"><h2>¡Bienvenido!</h2><p>Analiza, determina y reporta los gastos empresariales sujetos a deducción y posibles reparos tributarios.</p><span class="hero-week">▣ &nbsp; Semana 12</span></div><img class="home-hero-art" src="/assets/welcome.png" alt=""></div>
+          <section class="week-card"><div class="week-card-title"><svg><use href="#i-target"/></svg><div><b>Tema de la Semana 12</b><h2>Mermas, Desmedros,<br>Depreciación y Cobranza Dudosa</h2></div></div><div class="week-activities"><p><svg><use href="#i-briefcase"/></svg><span><b>Actividad de campo:</b> Identificar situaciones empresariales.</span></p><p><svg><use href="#i-screen"/></svg><span><b>Actividad de escritorio:</b> Investigar los requisitos tributarios.</span></p><p><svg><use href="#i-lab"/></svg><span><b>Actividad de laboratorio:</b> Resolver casos prácticos.</span></p></div></section>
+        </div>
+        <section class="home-stats" aria-label="Indicadores generales">
+          <article class="home-stat"><span class="home-stat-icon folder"><svg><use href="#i-folder"/></svg></span><div><b>Casos registrados</b><strong id="home-count">0</strong><small>En tu cuenta</small></div></article>
+          <article class="home-stat"><span class="home-stat-icon check"><svg><use href="#i-check"/></svg></span><div><b>Deducción considerada</b><strong id="home-deductible">S/ 0.00</strong><small>Ingresada por el usuario</small></div></article>
+          <article class="home-stat"><span class="home-stat-icon warning"><svg><use href="#i-warning"/></svg></span><div><b>Reparo tributario</b><strong id="home-adjustment">S/ 0.00</strong><small>Gasto menos deducción</small></div></article>
+          <article class="home-stat"><span class="home-stat-icon database"><svg><use href="#i-database"/></svg></span><div><b>Ahorro estimado (IR)</b><strong>—</strong><small>No calculado</small></div></article>
+        </section>
+        <div class="home-charts">
+          <section class="home-panel distribution"><div class="home-panel-title"><span>▣</span><h2>Distribución de casos por concepto</h2></div><div class="distribution-body"><div class="donut" id="home-donut" role="img" aria-label="Sin casos registrados"><div><strong id="donut-count">0</strong><small>casos</small></div></div><div class="distribution-legend" id="distribution-legend"></div></div></section>
+          <section class="home-panel amounts"><div class="home-panel-title"><span>ϟ</span><h2>Montos por concepto (S/)</h2></div><div class="chart-key"><span class="key-bar"></span>Deducción considerada <span class="key-line"></span>Reparo tributario</div><div class="amount-chart" id="amount-chart" aria-label="Montos por concepto"></div><p class="chart-note">Suma por categoría, no evolución temporal.</p></section>
+          <section class="home-panel quick"><div class="home-panel-title"><span>ϟ</span><h2>Accesos rápidos</h2></div><div class="quick-grid"><a href="#registro"><svg><use href="#i-plus"/></svg><b>Nuevo análisis</b></a><a href="#informe"><svg><use href="#i-file"/></svg><b>Informe de reparos</b></a><a href="#guia"><svg><use href="#i-book"/></svg><b>Guía tributaria</b></a><a href="/assets/plantilla-casos.xlsx" download><span class="excel-icon">X</span><b>Plantilla Excel</b></a></div><p class="chart-note">La plantilla es de trabajo; el registro es manual.</p></section>
+        </div>
+        <div class="home-bottom">
+          <section class="home-panel recent"><div class="home-panel-title"><span>◷</span><h2>Últimos análisis registrados</h2><a href="#historial">Ver historial →</a></div><div class="table-wrap"><table class="recent-table"><thead><tr><th>Código</th><th>Concepto</th><th>Descripción del caso</th><th>Deducción (S/)</th><th>Reparo (S/)</th><th>Fecha</th><th>Estado</th></tr></thead><tbody id="home-recent"></tbody></table></div><p class="recent-empty" id="home-recent-empty">Aún no tienes casos registrados.</p></section>
+          <section class="home-panel compliance" id="cumplimiento" tabindex="-1"><div class="home-panel-title"><span>♢</span><h2>Estado de cumplimiento tributario</h2></div><div class="compliance-content"><div><div class="compliance-meter"><span></span></div><p><b>Sin evaluación automática</b></p><p>Revisa la documentación y los requisitos de cada caso antes de concluir.</p><a href="#guia">Consultar normativa →</a></div><img src="/assets/checklist.png" alt=""></div></section>
+        </div>
+      </section>
+
+      <section class="app-view" id="informe" aria-labelledby="dashboard-title" hidden>
+        <div class="report-heading"><span class="report-heading-icon"><svg><use href="#i-file"/></svg></span><div><h1 id="dashboard-title">Informe de reparos tributarios</h1><p>Genera el informe consolidado de los casos analizados en la Semana 12.</p></div></div>
+        <div class="report-hero"><div><span>Semana 12</span><h2>Mermas, Desmedros, Depreciación<br>y Cobranza Dudosa</h2></div><img src="/assets/informe.png" alt=""></div>
+        <section class="report-stats" aria-label="Resumen del informe">
+          <article><span class="report-stat-icon pink">▱</span><div><b>Casos incluidos</b><strong id="case-count">0</strong></div></article>
+          <article><span class="report-stat-icon green">✓</span><div><b>Deducción considerada</b><strong id="total-deductible">S/ 0.00</strong></div></article>
+          <article><span class="report-stat-icon red">⚠</span><div><b>Reparo tributario</b><strong id="total-adjustment">S/ 0.00</strong></div></article>
+          <article><span class="report-stat-icon pink">%</span><div><b>Incidencia en el IR</b><strong>No calculada</strong></div></article>
+          <article><span class="report-stat-icon pink">▥</span><div><b>Estado del informe</b><strong class="report-ready" id="report-status">Sin casos</strong></div></article>
+        </section>
+        <p class="report-tax-note">La incidencia no está guardada en los casos consolidados; consulta el análisis individual para su estimación.</p>
+        <div class="report-workspace">
+          <section class="report-box report-preview-box" aria-labelledby="report-preview-title">
+            <h2 id="report-preview-title"><span>◉</span> Vista previa del informe</h2>
+            <div class="report-preview-toolbar">Vista previa · el contenido se actualiza con tu selección</div>
+            <div class="report-preview-scroll"><div id="report-preview" class="report-paper" tabindex="-1"></div></div>
+          </section>
+          <div class="report-side">
+            <section class="report-box">
+              <div class="report-box-header"><h2><span>▣</span> Casos que se incluirán en el informe</h2><button type="button" id="select-all-cases" class="text-action">Seleccionar todos</button></div>
+              <div class="report-table-wrap"><table class="report-selection-table"><thead><tr><th><span class="sr-only">Seleccionar</span></th><th>N.º</th><th>Código</th><th>Concepto</th><th>Descripción del caso</th><th>Gasto (S/)</th><th>Deducción (S/)</th><th>Reparo (S/)</th></tr></thead><tbody id="report-case-rows"></tbody></table></div>
+              <p id="report-cases-empty" class="report-empty">Aún no hay casos registrados. <a href="#registro">Registrar un caso →</a></p>
+            </section>
+            <section class="report-box report-configuration">
+              <h2><span>⚙</span> Configuración del informe</h2>
+              <div class="report-options">
+                <fieldset><legend>Tipo de informe</legend>
+                  <label><input type="radio" name="report-type" value="complete" checked> Informe completo</label>
+                  <label><input type="radio" name="report-type" value="executive"> Informe ejecutivo</label>
+                  <label><input type="radio" name="report-type" value="technical"> Informe técnico</label>
+                </fieldset>
+                <fieldset><legend>Contenido del informe</legend>
+                  <label><input type="checkbox" data-report-section="charts" checked> Incluir gráficos y tablas</label>
+                  <label><input type="checkbox" data-report-section="analysis" checked> Incluir interpretación y análisis</label>
+                  <label><input type="checkbox" data-report-section="law" checked> Incluir base normativa</label>
+                  <label><input type="checkbox" data-report-section="conclusions" checked> Incluir conclusiones y recomendaciones</label>
+                  <label><input type="checkbox" data-report-section="evidence"> Incluir relación de evidencias</label>
+                </fieldset>
+              </div>
+              <div class="report-fields"><label>Empresa o caso<input id="company" type="text" maxlength="100" placeholder="Sin indicar"></label><label>Ejercicio tributario<input id="period" type="number" min="1900" max="9999" step="1" placeholder="Sin indicar"></label></div>
+              <button type="button" class="text-action save-profile" id="save-profile">Guardar datos de empresa y ejercicio</button>
+              <p class="field-help">Las evidencias se enumeran con enlaces de descarga; sus archivos no se insertan en el PDF.</p>
+              <div class="report-actions"><button type="button" class="button button-outline" id="refresh-preview">◉ &nbsp; Vista previa</button><button type="button" class="button button-outline" id="save-report-settings">▣ &nbsp; Guardar configuración</button><button type="button" class="button button-primary" id="print-report">▤ &nbsp; Generar informe PDF →</button></div>
+              <p class="field-help" id="report-message" role="status"></p><p class="field-help">Para descargar el PDF, selecciona «Guardar como PDF» en la ventana de impresión.</p>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="app-view" id="historial" aria-labelledby="history-title" hidden>
+        <div class="report-heading"><span class="report-heading-icon"><svg><use href="#i-clock"/></svg></span><div><h1 id="history-title">Historial de casos</h1><p>Consulta, gestiona y da seguimiento a tus análisis registrados.</p></div></div>
+        <div class="history-hero"><div><h2>Tus análisis siempre disponibles</h2><p>Revisa, edita o recupera los casos de Mermas, Desmedros,<br> Depreciación y Cobranza Dudosa.</p></div><img src="/assets/historial.png" alt=""></div>
+        <section class="history-stats" aria-label="Resumen de los casos filtrados">
+          <article><span class="history-stat-icon pink">▱</span><div><b>Total de casos</b><strong id="history-count">0</strong></div></article>
+          <article><span class="history-stat-icon green">✓</span><div><b>Deducción total</b><strong id="history-full">0</strong></div></article>
+          <article><span class="history-stat-icon amber">△</span><div><b>Deducción parcial</b><strong id="history-partial">0</strong></div></article>
+          <article><span class="history-stat-icon red">×</span><div><b>Deducción nula</b><strong id="history-none">0</strong></div></article>
+          <article><span class="history-stat-icon pink">▦</span><div><b>Último guardado (UTC)</b><strong id="history-updated">—</strong></div></article>
+        </section>
+        <p class="history-note">Indicadores y gráficos según los filtros y los importes ingresados. No determinan la deducibilidad tributaria. Los guardados anteriores a esta versión no tienen fecha de actualización disponible.</p>
+        <form class="history-filters" id="history-filters">
+          <label class="history-search">Buscar por código, empresa del borrador o descripción<input type="search" id="history-query" placeholder="Buscar por código, empresa o descripción..."></label>
+          <label>Categoría<select id="history-category"><option value="">Todas</option><option>Mermas</option><option>Desmedros</option><option>Depreciación</option><option>Cobranza dudosa</option></select></label>
+          <label>Deducción considerada<select id="history-status"><option value="">Todas</option><option value="full">Total</option><option value="partial">Parcial</option><option value="none">Nula</option></select></label>
+          <label>Mes de registro (UTC)<input type="month" id="history-month"></label>
+          <button type="submit" class="button button-primary">⌕ &nbsp; Filtrar</button><button type="button" class="button button-outline" id="history-clear">↻ &nbsp; Limpiar</button>
+        </form>
+        <div id="import-notice" class="import-notice" hidden><p>Hay casos de la versión anterior en este navegador. Impórtalos solo si te pertenecen.</p><button type="button" class="text-action" id="import-old">Importar casos anteriores</button></div>
+        <section class="history-table-box" aria-label="Casos registrados"><div class="history-table-scroll"><table class="history-table"><thead><tr><th>N.º</th><th>Código</th><th>Categoría</th><th>Descripción del caso</th><th>Gasto (S/)</th><th>Deducción (S/)</th><th>Reparo (S/)</th><th>Registro (UTC)</th><th>Deducción considerada</th><th>Acciones</th></tr></thead><tbody id="case-list"></tbody></table></div><div id="empty-state" class="empty-state"><strong id="history-empty-text">Aún no hay casos registrados.</strong><p>Registra un caso o ajusta los filtros para ver resultados.</p><a class="text-action" href="#registro">Registrar un caso →</a></div></section>
+        <div class="history-bottom">
+          <section class="history-panel"><h2><span>◔</span> Distribución de casos por categoría</h2><div class="history-distribution"><div id="history-donut" class="donut" role="img"><div><strong id="history-donut-count">0</strong><small>casos</small></div></div><div id="history-legend" class="history-legend"></div></div></section>
+          <section class="history-panel"><h2><span>ϟ</span> Deducción considerada</h2><div id="history-chart" class="history-chart" role="img"></div><p class="history-note">Clasificación según los importes ingresados.</p></section>
+          <section class="history-panel history-quick"><h2><span>ϟ</span> Acciones rápidas</h2><a href="#registro">＋ &nbsp; Nuevo análisis</a><button type="button" id="history-report">▤ &nbsp; Generar informe</button><button type="button" id="history-export">▣ &nbsp; Exportar a Excel</button><p class="history-note">Informe y Excel usan los casos filtrados.</p><p id="history-export-message" class="history-note" role="status"></p></section>
+        </div>
+        <section class="panel draft-history"><div class="panel-heading"><div class="heading-icon">▤</div><div><h3>Borradores</h3><p>Continúa con tus registros pendientes y sus evidencias.</p></div><span class="count-pill" id="draft-badge">0 borradores</span></div><div id="draft-list" class="case-list"></div><div id="draft-empty" class="empty-state">Aún no tienes borradores guardados.</div></section>
+
+      </section>
+
+      <section class="app-view" id="mis-casos" aria-labelledby="my-cases-title" hidden>
+        <div class="page-heading"><div><span class="section-kicker">TU BIBLIOTECA</span><h1 id="my-cases-title">Mis casos</h1><p>Consulta los casos guardados en tu cuenta y abre su informe.</p></div><a class="button button-primary" href="#registro">＋ &nbsp; Nuevo análisis</a></div>
+        <section class="panel"><div class="panel-heading"><div class="heading-icon">▤</div><div><h3>Mis casos registrados</h3><p>Los mismos registros disponibles en tu historial.</p></div></div><div id="my-case-list" class="case-list"></div><div id="my-cases-empty" class="empty-state"><strong>Aún no hay casos registrados</strong><p>Registra un caso para comenzar.</p><a class="text-action" href="#registro">Registrar un caso →</a></div></section>
+      </section>
+
+      <section class="app-view" id="registro" aria-labelledby="register-title" hidden>
+        <div id="analysis-selection">
+          <div class="analysis-heading"><span class="analysis-heading-icon"><svg><use href="#i-plus"/></svg></span><div><h1 id="register-title" tabindex="-1">Nuevo análisis</h1><p>Selecciona el tipo de gasto empresarial que deseas analizar.</p></div></div>
+          <div class="analysis-banner"><div class="analysis-banner-copy"><span>ANÁLISIS DE GASTOS EMPRESARIALES</span><h2>Mermas, Desmedros,<br>Depreciación y Cobranza Dudosa</h2><p>Registra, evalúa y determina la deducción o el posible reparo tributario de acuerdo con la normativa vigente.</p></div><img src="/assets/welcome.png" alt=""></div>
+          <div class="analysis-cards">
+            <article class="analysis-card"><div class="analysis-art"><img src="/assets/mermas.png" alt=""></div><div class="analysis-card-copy"><h2><svg><use href="#i-box"/></svg> Mermas</h2><p>Pérdida física de existencias por causas inherentes a su naturaleza o al proceso productivo.</p><button type="button" class="analysis-button" data-category="Mermas">Analizar caso <span>→</span></button></div></article>
+            <article class="analysis-card"><div class="analysis-art"><img src="/assets/desmedros.png" alt=""></div><div class="analysis-card-copy"><h2><svg><use href="#i-trash"/></svg> Desmedros</h2><p>Deterioro, daño u obsolescencia de existencias que las hace inutilizables para su fin.</p><button type="button" class="analysis-button" data-category="Desmedros">Analizar caso <span>→</span></button></div></article>
+            <article class="analysis-card"><div class="analysis-art"><img src="/assets/depreciacion.png" alt=""></div><div class="analysis-card-copy"><h2><svg><use href="#i-chart"/></svg> Depreciación</h2><p>Desgaste o pérdida de valor de activos por el uso, el tiempo u obsolescencia.</p><button type="button" class="analysis-button" data-category="Depreciación">Analizar caso <span>→</span></button></div></article>
+            <article class="analysis-card"><div class="analysis-art"><img src="/assets/cobranza.png" alt=""></div><div class="analysis-card-copy"><h2><svg><use href="#i-people"/></svg> Cobranza dudosa</h2><p>Cuentas por cobrar con riesgo de incobrabilidad que requieren sustento y revisión.</p><button type="button" class="analysis-button" data-category="Cobranza dudosa">Analizar caso <span>→</span></button></div></article>
+          </div>
+          <div class="analysis-steps"><div><span><svg><use href="#i-target"/></svg></span><div><h3>Registra la situación</h3><p>Ingresa los datos y sustento del caso.</p></div></div><div><span><svg><use href="#i-calc"/></svg></span><div><h3>Evalúa la deducción</h3><p>Revisa los requisitos tributarios y determina el importe deducible.</p></div></div><div><span><svg><use href="#i-file"/></svg></span><div><h3>Obtén el resultado</h3><p>Consulta el reparo y genera tu informe.</p></div></div></div>
+        </div>
+        <div id="analysis-entry" hidden>
+          <div class="wizard-title"><button type="button" class="wizard-back" id="back-to-categories" aria-label="Volver a elegir tipo de gasto">←</button><div><h1 id="entry-title" tabindex="-1">Registro del caso</h1><p id="entry-subtitle">Ingresa la información de la situación empresarial y la documentación de sustento.</p></div></div>
+          <div class="wizard-steps" aria-label="Etapas del análisis"><div id="step-indicator-1" class="active" aria-current="step"><b>1</b><span><strong>Registro del caso</strong><small>Datos y sustento</small></span></div><span class="wizard-arrow">›</span><div id="step-indicator-2"><b>2</b><span><strong>Requisitos tributarios</strong><small>Verificación</small></span></div><span class="wizard-arrow">›</span><div id="step-indicator-3"><b>3</b><span><strong>Cálculo y evaluación</strong><small>Deducción y reparo</small></span></div><span class="wizard-arrow">›</span><div id="step-indicator-4"><b>4</b><span><strong>Resultado</strong><small>Informe del caso</small></span></div></div>
+          <div id="wizard-step-one">
+          <div class="wizard-layout">
+            <section class="panel wizard-data">
+              <div class="wizard-card-title"><img id="wizard-image" src="/assets/mermas.png" alt=""><div><h2 id="wizard-data-title">Datos del caso</h2><p id="wizard-data-subtitle">Registra los detalles de la situación.</p></div><span class="wizard-code" id="draft-code">Nuevo borrador</span></div>
+              <form id="wizard-form">
+                <div class="form-grid wizard-fields">
+                  <label>Empresa / Razón social <span class="required">*</span><input name="company" type="text" maxlength="100" placeholder="Ingresa la empresa" required></label>
+                  <label>Fecha de identificación <span class="required">*</span><input name="date" type="date" required></label>
+                  <label><span id="subject-label">Producto o existencia</span> <span class="required">*</span><input name="subject" type="text" maxlength="160" placeholder="Describe el bien o la cuenta" required></label>
+                  <div class="wizard-stock wizard-field-group"><label>Unidad de medida <span class="required">*</span><select name="unit" required><option value="">Selecciona una unidad</option><option>kg</option><option>g</option><option>litros</option><option>unidades</option><option>metros</option><option>otros</option></select></label></div>
+                  <div class="wizard-stock wizard-field-group"><label><span id="quantity-label">Cantidad</span> <span class="required">*</span><input name="quantity" type="number" min="0.01" max="1000000" step="0.01" placeholder="0.00" required></label></div>
+                  <div class="wizard-stock wizard-field-group"><label>Costo unitario (S/) <span class="required">*</span><input name="unit_cost" type="number" min="0" max="1000000000" step="0.01" placeholder="0.00" required></label></div>
+                  <div class="wizard-stock wizard-field-group"><label><span id="total-label">Monto total (S/)</span><output id="stock-total" class="wizard-total">—</output></label></div>
+                  <div class="wizard-stock wizard-field-group"><label>Área o proceso donde se generó <span class="required">*</span><input name="process" type="text" maxlength="120" placeholder="Ej. Producción" required></label></div>
+                  <div class="wizard-asset wizard-field-group" hidden><label>Costo de adquisición (S/) <span class="required">*</span><input name="asset_cost" type="number" min="0.01" max="1000000000" step="0.01" placeholder="0.00" required></label></div>
+                  <div class="wizard-asset wizard-field-group" hidden><label>Depreciación contabilizada (S/) <span class="required">*</span><input name="annual_expense" type="number" min="0" max="1000000000" step="0.01" placeholder="0.00" required></label></div>
+                  <div class="wizard-debt wizard-field-group" hidden><label>Documento de la deuda <span class="required">*</span><input name="document" type="text" maxlength="120" placeholder="Ej. Factura" required></label></div>
+                  <div class="wizard-debt wizard-field-group" hidden><label>Fecha de vencimiento <span class="required">*</span><input name="due_date" type="date" required></label></div>
+                  <div class="wizard-debt wizard-field-group" hidden><label>Importe por cobrar (S/) <span class="required">*</span><input name="receivable" type="number" min="0.01" max="1000000000" step="0.01" placeholder="0.00" required></label></div>
+                  <div class="wizard-debt wizard-field-group" hidden><label>Provisión contabilizada (S/) <span class="required">*</span><input name="provision" type="number" min="0" max="1000000000" step="0.01" placeholder="0.00" required></label></div>
+                  <label class="wizard-wide"><span id="cause-label">Descripción de la situación</span> <span class="required">*</span><textarea name="cause" maxlength="500" rows="3" placeholder="Describe la situación y su sustento" required></textarea></label>
+                </div>
+              </form>
+            </section>
+            <aside class="wizard-side">
+              <section class="wizard-evidence"><div class="wizard-side-title"><span>▤</span><div><h2>Sustento y evidencias</h2><p>Adjunta los documentos que acreditan la situación.</p></div></div><label class="upload-zone" id="upload-zone"><span class="upload-icon">⇧</span><strong>Arrastra tus archivos aquí o haz clic para seleccionar</strong><small>PDF, JPG, PNG, Excel · Máx. 10 MB por archivo, 5 archivos</small><input type="file" id="evidence-input" accept=".pdf,.jpg,.jpeg,.png,.xls,.xlsx" multiple></label><div id="evidence-list" class="evidence-list"></div><p class="wizard-help">Los archivos se guardan al pulsar «Guardar borrador».</p></section>
+              <section class="panel wizard-law"><div class="wizard-side-title"><span>⚖</span><div><h2>Base normativa referencial</h2></div></div><ul id="wizard-law-list"></ul><a href="#guia" data-guide-case>Consultar normativa →</a></section>
+            </aside>
+          </div>
+          <div class="wizard-footer"><button type="button" class="wizard-cancel" id="wizard-cancel">Cancelar</button><div><button type="button" class="wizard-save" id="save-draft">▣ &nbsp; Guardar borrador</button><button type="submit" form="wizard-form" class="analysis-button">Continuar <span>→</span></button></div></div>
+          <p class="wizard-pending" role="status" id="wizard-message" hidden></p>
+          <button type="button" class="text-action legacy-toggle" id="legacy-toggle">Usar registro rápido anterior →</button>
+          <div class="dashboard-grid" id="legacy-entry" hidden><section class="panel">
+          <div class="panel-heading"><div class="heading-icon">＋</div><div><h3>Datos del caso</h3><p>El registro se guardará en el historial de tu cuenta.</p></div></div>
+          <form id="case-form"><div class="form-grid">
+            <label>Tipo de gasto<select id="category" required><option value="">Selecciona una categoría</option><option>Mermas</option><option>Desmedros</option><option>Depreciación</option><option>Cobranza dudosa</option></select></label>
+            <label>Descripción del caso<input id="description" type="text" maxlength="160" placeholder="Ej. Productos dañados en almacén" required></label>
+            <label>Gasto contabilizado <span class="label-hint">(S/)</span><input id="expense" type="number" min="0.01" max="1000000000" step="0.01" placeholder="0.00" required></label>
+            <label>Importe deducible <span class="label-hint">(S/)</span><input id="deductible" type="number" min="0" max="1000000000" step="0.01" placeholder="0.00" required></label>
+          </div><p class="field-help">Ingresa el importe deducible después de revisar los requisitos y documentos del caso. Puede ser cero.</p>
+            <label>Sustento y motivo del análisis<textarea id="support" rows="3" maxlength="500" placeholder="Ej. Se revisó el informe técnico y la documentación disponible..." required></textarea></label>
+            <div class="form-footer"><span>El reparo se calcula como gasto menos deducción.</span><button class="button button-primary" type="submit">Guardar caso <span>＋</span></button></div>
+          </form>
+        </section>
+        <aside class="guide-card"><span class="guide-icon">✳</span><span class="section-kicker">UNA AYUDA PARA EMPEZAR</span><h3>¿Qué debo revisar?</h3><p>Guía inicial; no es una evaluación automática de los requisitos.</p>
+          <div class="guide-item"><b>01</b><div><strong>Mermas</strong><span>Revisa la pérdida física y el sustento técnico correspondiente.</span></div></div>
+          <div class="guide-item"><b>02</b><div><strong>Desmedros</strong><span>Revisa el deterioro y la acreditación de la destrucción conforme a la norma.</span></div></div>
+          <div class="guide-item"><b>03</b><div><strong>Depreciación</strong><span>Revisa el activo, su registro y la tasa tributaria aplicable.</span></div></div>
+          <div class="guide-item"><b>04</b><div><strong>Cobranza dudosa</strong><span>Revisa la deuda, las gestiones de cobro y su provisión contable.</span></div></div>
+          <a href="#guia" data-guide-case>Ver normativa de referencia →</a>
+        </aside></div></div>
+          <div id="wizard-step-two" hidden>
+            <section class="review-summary panel"><img id="review-image" src="/assets/mermas.png" alt=""><div><span class="wizard-code" id="review-code">Borrador</span><strong id="review-company"></strong></div><div><b>Concepto:</b> <span id="review-category"></span></div><div><b>Fecha:</b> <span id="review-date"></span></div><div><b>Monto:</b> <span id="review-amount"></span><small id="review-amount-label"></small></div></section>
+            <div class="review-layout">
+              <section class="panel review-checklist"><div class="wizard-side-title"><span>☑</span><div><h2>Lista de verificación de requisitos</h2><p>Marca tu revisión y relaciona la evidencia correspondiente.</p></div></div><div class="review-table-wrap"><table class="review-table"><thead><tr><th>N.º</th><th>Puntos de revisión tributaria</th><th>Estado</th><th>Evidencia</th></tr></thead><tbody id="review-items"></tbody></table></div><p class="review-disclaimer">Puntos referenciales: verifica su aplicación y la normativa vigente para el caso. Las marcas son ingresadas por ti.</p></section>
+              <aside class="review-side"><section class="panel review-result"><div class="wizard-side-title"><span>✓</span><div><h2>Resultado de tu revisión</h2></div></div><div class="review-result-content"><div class="review-meter"><svg viewBox="0 0 110 65" aria-hidden="true"><path class="meter-track" d="M 10 55 A 45 45 0 0 1 100 55"></path><path class="meter-progress" id="review-meter-progress" d="M 10 55 A 45 45 0 0 1 100 55"></path></svg><div><strong id="review-percent">0%</strong><small>Marcados como cumple</small></div></div><ul class="review-counts"><li><span class="review-dot met">✓</span><b id="review-met">0</b> cumple</li><li><span class="review-dot pending">!</span><b id="review-pending">0</b> pendientes</li><li><span class="review-dot not-met">×</span><b id="review-not-met">0</b> no cumplen</li></ul></div><p class="review-note">El porcentaje resume tus marcas; no determina la deducibilidad ni sustituye la revisión tributaria.</p></section>
+              <section class="panel wizard-law"><div class="wizard-side-title"><span>⚖</span><div><h2>Base normativa referencial</h2></div></div><ul id="review-law-list"></ul><a href="#guia" data-guide-case>Consultar fuentes oficiales →</a></section></aside>
+            </div>
+            <div class="wizard-footer"><button type="button" class="wizard-cancel" id="review-previous">‹ &nbsp; Anterior: Registro del caso</button><div><button type="button" class="wizard-save" id="save-review">▣ &nbsp; Guardar avance</button><button type="button" class="analysis-button" id="review-next">Continuar: Cálculo y evaluación <span>→</span></button></div></div>
+            <p class="wizard-pending" role="status" id="review-message" hidden></p>
+          </div>
+          <div id="wizard-step-three" hidden>
+            <section class="review-summary panel"><img id="calculation-image" src="/assets/mermas.png" alt=""><div><span class="wizard-code" id="calculation-code">Borrador</span><strong id="calculation-company"></strong></div><div><b>Concepto:</b> <span id="calculation-category"></span></div><div><b>Fecha:</b> <span id="calculation-date"></span></div><div><b>Monto registrado:</b> <span id="calculation-amount"></span><small id="calculation-amount-label"></small></div></section>
+            <div class="calc-top">
+              <section class="panel calc-panel"><div class="calc-heading"><span>▣</span><h2>Determinación del gasto deducible</h2></div><table class="calc-table"><thead><tr><th>Concepto</th><th>Importe (S/)</th></tr></thead><tbody><tr><td>Gasto registrado</td><td id="calc-recorded">—</td></tr><tr><td><label for="non-admitted">Importe no admitido o no sustentado</label></td><td><input id="non-admitted" type="text" inputmode="decimal" maxlength="19" placeholder="Ingresar monto" autocomplete="off"></td></tr><tr><td>Gasto deducible considerado</td><td id="calc-deductible">—</td></tr></tbody></table><p class="calc-help">Ingresa el importe no admitido según tu revisión. Para ningún reparo, ingresa 0.</p><p id="calc-error" class="calc-error" role="alert" hidden></p></section>
+              <section class="panel calc-panel"><div class="calc-heading"><span>▣</span><h2>Fórmula de evaluación</h2></div><div class="calc-formula">Gasto deducible = Gasto registrado<br>− Importe no admitido</div><p class="calc-note">La deducción requiere comprobar los requisitos y el sustento aplicables. La herramienta no los determina automáticamente.</p></section>
+              <section class="panel calc-panel"><div class="calc-heading"><span>➜</span><h2>Comparativo del análisis (S/)</h2></div><div class="calc-chart" aria-label="Comparación de gasto registrado y deducción considerada"><div class="calc-chart-column"><strong id="chart-recorded-value">—</strong><div class="calc-chart-track"><span id="chart-recorded-bar"></span></div><small>Gasto registrado</small></div><div class="calc-chart-column"><strong id="chart-deductible-value">—</strong><div class="calc-chart-track"><span id="chart-deductible-bar"></span></div><small>Gasto deducible</small></div></div></section>
+            </div>
+            <div class="calc-bottom">
+              <section class="panel calc-panel"><div class="calc-heading"><span>◎</span><h2>Resultado de la evaluación tributaria</h2></div><div class="calc-results"><div><span>✓</span><div><small>Deducción considerada</small><strong id="result-deductible">—</strong></div></div><div><span>%</span><div><small>Reparo tributario</small><strong id="result-adjustment">—</strong></div></div><div><span>◔</span><div><small>Incidencia estimada en el IR</small><strong id="result-tax">—</strong></div></div></div><label class="tax-rate-label" for="tax-rate">Tasa aplicable (%) <span class="label-hint">· opcional, según tu caso</span><input id="tax-rate" type="text" inputmode="decimal" maxlength="6" placeholder="Ej. 29.5" autocomplete="off"></label><p class="calc-help">La incidencia es una estimación del reparo por la tasa ingresada; no es el impuesto definitivo.</p></section>
+              <section class="panel calc-panel interpretation"><div class="calc-heading"><span>▤</span><h2>Interpretación del resultado</h2></div><div class="interpretation-content"><p id="calc-interpretation">Ingresa el importe no admitido para calcular la deducción considerada y el reparo.</p><img src="/assets/checklist.png" alt=""></div></section>
+              <section class="panel calc-panel"><div class="calc-heading"><span>⚖</span><h2>Base normativa referencial</h2></div><ul id="calculation-law-list" class="calc-law-list"></ul><a href="#guia" data-guide-case class="text-action">Consultar fuentes oficiales →</a></section>
+              <section class="panel calc-panel"><div class="calc-heading"><span>♧</span><h2>Recomendación</h2></div><div class="calc-recommendation">Conserva las evidencias del caso y revisa la normativa vigente antes de determinar la deducción y el reparo.</div></section>
+            </div>
+            <div class="wizard-footer"><button type="button" class="wizard-cancel" id="calculation-previous">‹ &nbsp; Anterior: Requisitos tributarios</button><div><button type="button" class="wizard-save" id="save-calculation">▣ &nbsp; Guardar avance</button><button type="button" class="analysis-button" id="calculation-next">Continuar: Resultado del caso <span>→</span></button></div></div>
+            <p class="wizard-pending" role="status" id="calculation-message" hidden></p>
+          </div>
+          <div id="wizard-step-four" hidden>
+            <section class="review-summary panel"><img id="final-image" src="/assets/mermas.png" alt=""><div><span class="wizard-code" id="final-code"></span><strong id="final-company"></strong></div><div><b>Concepto:</b> <span id="final-category"></span></div><div><b>Fecha de identificación:</b> <span id="final-date"></span></div><div><b>Monto registrado:</b> <span id="final-amount"></span><small id="final-amount-label"></small></div></section>
+            <div class="final-top">
+              <section class="panel calc-panel"><div class="calc-heading"><span>▤</span><h2>Resumen del análisis</h2></div><table class="calc-table"><thead><tr><th>Concepto</th><th>Importe (S/)</th></tr></thead><tbody><tr><td>Gasto registrado</td><td id="final-expense"></td></tr><tr><td>Deducción considerada</td><td id="final-deductible"></td></tr><tr><td>Reparo tributario</td><td id="final-adjustment"></td></tr><tr><td id="final-tax-label">Incidencia estimada en el IR</td><td id="final-tax"></td></tr></tbody></table></section>
+              <section class="panel calc-panel"><div class="calc-heading"><span>▥</span><h2>Comparativo del gasto</h2></div><div class="calc-chart" aria-label="Comparación del gasto registrado y la deducción considerada"><div class="calc-chart-column"><strong id="final-chart-expense"></strong><div class="calc-chart-track"><span id="final-expense-bar"></span></div><small>Gasto registrado</small></div><div class="calc-chart-column"><strong id="final-chart-deductible"></strong><div class="calc-chart-track"><span id="final-deductible-bar"></span></div><small>Deducción considerada</small></div></div></section>
+              <section class="panel calc-panel"><div class="calc-heading"><span>♢</span><h2>Estado del caso</h2></div><div class="final-status" id="final-status">Revisión ingresada por el usuario</div><ul class="final-status-list"><li id="final-review-status"></li><li id="final-evidence-status"></li><li id="final-save-status"></li></ul></section>
+            </div>
+            <div class="calc-bottom"><section class="panel calc-panel interpretation"><div class="calc-heading"><span>⌕</span><h2>Interpretación del resultado</h2></div><div class="interpretation-content"><img src="/assets/checklist.png" alt=""><p id="final-interpretation" class="final-interpretation"></p></div></section><section class="panel calc-panel"><div class="calc-heading"><span>⚖</span><h2>Base normativa referencial</h2></div><ul id="final-law-list" class="calc-law-list"></ul><a href="#guia" data-guide-case class="text-action">Consultar fuentes oficiales →</a></section></div>
+            <section class="panel calc-panel final-recommendation"><div class="calc-heading"><span>♧</span><h2>Recomendación</h2></div><p>Conserva las evidencias del caso y verifica la normativa vigente y el sustento antes de concluir sobre la deducción.</p></section>
+            <div class="wizard-footer"><button type="button" class="wizard-cancel" id="final-previous">‹ &nbsp; Anterior: Cálculo y evaluación</button><div><button type="button" class="wizard-save" id="final-edit">✎ &nbsp; Editar caso</button><button type="button" class="wizard-save" id="final-save">▣ &nbsp; Guardar caso</button><button type="button" class="analysis-button" id="final-print">▤ &nbsp; Generar informe PDF</button></div></div>
+            <p class="wizard-pending" role="status" id="final-message" hidden></p>
+            <p class="calc-help">El PDF se guarda desde la ventana de impresión del navegador. La revisión no determina automáticamente la deducibilidad.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="app-view tax-guide" id="guia" aria-labelledby="guide-title" hidden>
+        <div class="report-heading"><span class="report-heading-icon"><svg><use href="#i-book"/></svg></span><div><h1 id="guide-title">Guía tributaria</h1><p>Consulta la normativa, requisitos, criterios y documentación para el tratamiento tributario de los gastos empresariales.</p></div></div>
+        <div class="tax-guide-hero"><div><h2>Base técnica y normativa</h2><p>Conoce el tratamiento tributario de Mermas, Desmedros, Depreciación y Cobranza dudosa, con sustento legal y criterios de SUNAT.</p></div><img src="/assets/guia.png" alt=""></div>
+        <div class="tax-guide-tabs" aria-label="Categorías de la guía">
+          <button type="button" data-guide-category="Mermas"><svg><use href="#i-box"/></svg><span><b>Mermas</b><small>Pérdidas de existencias.</small></span></button>
+          <button type="button" data-guide-category="Desmedros"><svg><use href="#i-box"/></svg><span><b>Desmedros</b><small>Deterioro de existencias.</small></span></button>
+          <button type="button" data-guide-category="Depreciación"><svg><use href="#i-screen"/></svg><span><b>Depreciación</b><small>Desgaste de activos fijos.</small></span></button>
+          <button type="button" data-guide-category="Cobranza dudosa"><svg><use href="#i-database"/></svg><span><b>Cobranza dudosa</b><small>Cuentas de dudoso cobro.</small></span></button>
+        </div>
+        <div class="tax-guide-layout">
+          <div class="tax-guide-main">
+            <h2 class="tax-guide-category"><svg><use href="#i-book"/></svg><span id="guide-category-title"></span></h2>
+            <div class="tax-guide-top">
+              <section class="tax-guide-panel guide-definition"><h3>ⓘ &nbsp; ¿Qué son?</h3><p id="guide-definition"></p><img id="guide-category-image" alt=""></section>
+              <section class="tax-guide-panel"><h3>☑ &nbsp; Requisitos para su deducción</h3><ul class="guide-checks" id="guide-requirements"></ul></section>
+              <section class="tax-guide-panel"><h3>⚖ &nbsp; Base normativa aplicable</h3><div id="guide-laws" class="guide-links"></div></section>
+            </div>
+            <div class="tax-guide-bottom">
+              <section class="tax-guide-panel"><h3>⚙ &nbsp; Flujo del análisis en Tribuanálisis</h3><div class="guide-flow"><span>▤<b>1. Registrar<br>el caso</b></span><span>☑<b>2. Verificar<br>requisitos</b></span><span>▦<b>3. Calcular y<br>evaluar</b></span><span>▥<b>4. Obtener<br>el resultado</b></span></div></section>
+              <section class="tax-guide-panel"><h3>▱ &nbsp; Documentación sustentatoria</h3><ul id="guide-documents"></ul></section>
+            </div>
+          </div>
+          <aside class="tax-guide-aside">
+            <section class="tax-guide-panel"><h3>↗ &nbsp; Enlaces oficiales</h3><div id="guide-official" class="guide-links"></div></section>
+            <section class="tax-guide-panel"><h3>▱ &nbsp; Recursos de apoyo</h3><div id="guide-resources" class="guide-links"></div></section>
+          </aside>
+        </div>
+        <p class="guide-caveat">Guía académica: verifica el texto vigente para el ejercicio y las circunstancias del caso. Los enlaces a PDF señalan una página; el salto depende del visor.</p>
+      </section>
+
+      <section class="app-view" id="perfil" aria-labelledby="profile-title" hidden>
+        <div class="report-heading"><span class="report-heading-icon"><svg><use href="#i-user"/></svg></span><div><h1 id="profile-title">Perfil y créditos</h1><p>Información de la cuenta, del proyecto académico y del equipo de desarrollo.</p></div></div>
+        <div class="profile-hero"><div><h2>Tribuanálisis <span>Sistema de análisis tributario</span></h2><p>Plataforma web para el registro, evaluación y sustento de gastos empresariales: Mermas, Desmedros, Depreciación y Cobranza Dudosa.</p></div><img src="/assets/perfil.png" alt=""></div>
+        <div class="profile-top">
+          <section class="profile-panel profile-account"><h2>♙ &nbsp; Mi perfil</h2><div class="profile-account-head"><div class="account-avatar" id="profile-initials">U</div><div><strong id="profile-name">Sin nombre registrado</strong><span id="profile-email"></span><small>♙ &nbsp; Usuario</small></div></div><dl class="profile-details"><div><dt>Rol:</dt><dd>Usuario</dd></div><div><dt>Estado:</dt><dd><span class="account-active">✓ Sesión activa</span></dd></div><div><dt>Registro:</dt><dd id="profile-registered">No disponible</dd></div><div><dt>Última conexión:</dt><dd id="profile-login">No disponible</dd></div></dl><button type="button" class="profile-edit" id="edit-account">✎ &nbsp; Editar perfil</button><form id="account-form" hidden><label for="account-name-input">Nombre de la cuenta</label><input id="account-name-input" maxlength="100" required><div class="profile-form-actions"><button type="submit">Guardar</button><button type="button" id="cancel-account">Cancelar</button></div><p id="account-message" role="status"></p></form></section>
+          <section class="profile-panel profile-project"><h2>▤ &nbsp; Información del proyecto</h2><dl class="profile-details"><div><dt>Nombre:</dt><dd>Tribuanálisis – Semana 12</dd></div><div><dt>Curso:</dt><dd>Tributación II</dd></div><div><dt>Tema:</dt><dd>Análisis tributario de Mermas, Desmedros, Depreciación y Cobranza Dudosa</dd></div><div><dt>Versión:</dt><dd>V1.0</dd></div><div><dt>Fecha:</dt><dd>Noviembre 2026</dd></div><div><dt>Institución:</dt><dd>UNIVERSIDAD NACIONAL DE TRUJILLO - FILIAL VALLE JEQUETEPEQUE</dd></div></dl></section>
+          <div class="profile-right"><section class="profile-panel profile-teacher"><h2>♧ &nbsp; Docente</h2><div class="teacher-content"><img src="/assets/docente.png" alt="Ilustración de la docente"><strong>CPC. Marlene<br>Lourdes Altamirano</strong></div></section><section class="profile-panel"><h2>♙ &nbsp; Créditos del sistema</h2><div class="system-credits"><p><b>Desarrollo, diseño e implementación:</b><br>Equipo Tribuanálisis – Semana 12</p><p><b>Interfaz y estilo visual:</b><br>Paleta borgoña, lavanda y rosa</p><p><b>Tecnología:</b><br>Python (Flask) · SQLite · HTML · CSS · JS</p><span aria-hidden="true">⌘</span></div></section></div>
+        </div>
+        <div class="profile-bottom">
+          <section class="profile-panel team-panel"><h2>♧ &nbsp; Integrantes del equipo</h2><div class="team-grid">
+            <article><img src="/assets/equipo-1.png" alt=""><b>Chavarrea Tanta<br>Liz Rosmery</b><span>Integrante del equipo</span></article>
+            <article><img src="/assets/equipo-2.png" alt=""><b>Portales Pairazaman<br>Noemi Araceli</b><span>Integrante del equipo</span></article>
+            <article><img src="/assets/equipo-3.png" alt=""><b>Ramos Novoa<br>María Roxana</b><span>Integrante del equipo</span></article>
+            <article><img src="/assets/equipo-4.png" alt=""><b>Terán Cabanillas<br>Treisy Josseph</b><span>Integrante del equipo</span></article>
+            <article><img src="/assets/equipo-5.png" alt=""><b>Vásquez Tarrillo<br>Rut</b><span>Integrante del equipo</span></article>
+            <article><img src="/assets/equipo-1.png" alt=""><b>Vidaurre Rojas<br>Melany Laylin</b><span>Integrante del equipo</span></article>
+          </div></section>
+          <div class="profile-about-column"><section class="profile-panel profile-about"><h2>ⓘ &nbsp; Acerca de Tribuanálisis</h2><div><p>Herramienta académica de apoyo en el análisis y evaluación del tratamiento tributario de gastos empresariales, desarrollada con fines formativos en el curso de Tributación II.</p><img src="/assets/checklist.png" alt=""></div></section><div class="profile-actions"><a href="/api/project-code">⌘ &nbsp; Descargar código</a><button type="button" id="print-manual">▤ &nbsp; Manual de usuario (PDF)</button><button type="button" id="print-credits">⇩ &nbsp; Créditos (PDF)</button></div></div>
+        </div>
+      </section>
+      <div class="disclaimer"><span>ⓘ</span><p><strong>Recuerda:</strong> esta herramienta es académica. No determina automáticamente la deducibilidad ni sustituye la revisión de la normativa vigente y los documentos del caso.</p></div>
+      <footer><span><strong>tribuanálisis</strong> · Semana 12</span><span>Aprender también es analizar ✦</span></footer>
+    </main>
+  </div>
+  <section id="print-view" aria-label="Informe de reparos tributarios"></section>
+</body>
+</html>

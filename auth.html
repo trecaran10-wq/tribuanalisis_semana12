@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ingresar | Tribuanálisis</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-card">
+      <span class="auth-welcome-label">Bienvenido a</span>
+      <h1>Tribuanálisis</h1>
+      <span class="auth-title-rule"></span>
+      <p>Ingresa a tu cuenta o crea una para comenzar.</p>
+      <div class="auth-tabs" role="tablist" aria-label="Acceso">
+        <button type="button" class="auth-tab {% if active == 'login' %}active{% endif %}" data-auth-tab="login" role="tab" aria-selected="{{ 'true' if active == 'login' else 'false' }}"><span aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"></circle><path d="M4 21a8 8 0 0 1 16 0"></path></svg></span> Iniciar sesión</button>
+        <button type="button" class="auth-tab {% if active == 'register' %}active{% endif %}" data-auth-tab="register" role="tab" aria-selected="{{ 'true' if active == 'register' else 'false' }}"><span aria-hidden="true">＋</span> Crear cuenta</button>
+      </div>
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}<div class="auth-error" role="alert">{{ messages[0] }}</div>{% endif %}
+      {% endwith %}
+      <form method="post" class="auth-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="action" id="auth-action" value="{{ active }}">
+        <label><span class="auth-label-title"><span aria-hidden="true">✉</span> Correo electrónico</span><input type="email" name="email" maxlength="254" value="{{ email }}" placeholder="tu@correo.com" autocomplete="email" required></label>
+        <label><span class="auth-label-title"><span aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"></path></svg></span> Contraseña</span><span class="auth-password-wrap"><input type="password" name="password" id="auth-password" minlength="8" maxlength="128" placeholder="Mínimo 8 caracteres" autocomplete="{{ 'new-password' if active == 'register' else 'current-password' }}" required><button type="button" id="toggle-password" class="password-toggle" aria-label="Mostrar contraseña" aria-pressed="false">◉</button></span></label>
+        <label id="confirm-label" {% if active != 'register' %}hidden{% endif %}>Confirmar contraseña<input type="password" name="confirm_password" id="confirm-password" minlength="8" maxlength="128" placeholder="Repite tu contraseña" autocomplete="new-password" {% if active == 'register' %}required{% endif %}></label>
+        <button type="submit" class="button button-primary full-button" id="auth-submit"><span id="auth-submit-label">{{ 'Crear cuenta' if active == 'register' else 'Ingresar a mi cuenta' }}</span><span aria-hidden="true">→</span></button>
+      </form>
+      <p class="auth-footnote"><span aria-hidden="true">♧</span> Tus datos se guardan en esta computadora. No existe recuperación automática de contraseña.</p>
+    </section>
+  </main>
+  <script src="/auth.js"></script>
+</body>
+</html>
