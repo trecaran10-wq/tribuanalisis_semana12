@@ -43,7 +43,9 @@ def create_app(test_config=None):
     app.config.update(
         DATABASE=str(instance / "semana12.db"),
         DATABASE_URL=os.environ.get("DATABASE_URL") if vercel else None,
-        SECRET_KEY=os.environ.get("SESSION_SECRET") if vercel else None,
+        # SESSION_SECRET is the documented name; SECRET_KEY is accepted as a
+        # compatibility alias for deployments where it was configured earlier.
+        SECRET_KEY=(os.environ.get("SESSION_SECRET") or os.environ.get("SECRET_KEY")) if vercel else None,
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=vercel,
@@ -55,7 +57,7 @@ def create_app(test_config=None):
         if not app.config["DATABASE_URL"] or not app.config["DATABASE_URL"].startswith(("postgresql://", "postgres://")):
             raise RuntimeError("Configura DATABASE_URL con una base PostgreSQL persistente.")
         if not app.secret_key or len(app.secret_key) < 32:
-            raise RuntimeError("Configura SESSION_SECRET con al menos 32 caracteres aleatorios.")
+            raise RuntimeError("Configura SESSION_SECRET (o SECRET_KEY) con al menos 32 caracteres aleatorios.")
     elif test_config is None:
         instance.mkdir(parents=True, exist_ok=True)
         key_path = instance / ".session-key"

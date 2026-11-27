@@ -12,18 +12,16 @@ Fuentes oficiales: [Flask en Vercel](https://vercel.com/docs/frameworks/backend/
 
 1. Crea preferiblemente un repositorio **privado**: el proyecto contiene nombres e imágenes proporcionadas para el equipo y la docente. Revisa que tengas permiso antes de publicar esos materiales.
 2. Usa esta carpeta, `tribuanalisis_semana12`, como raíz del repositorio. Incluye los archivos de la aplicación, la carpeta `assets`, las pruebas y `.gitignore`.
-3. No subas `instance`, entornos virtuales, archivos `.env`, bases de datos, claves ni copias de seguridad privadas. `.gitignore` ayuda a excluirlos, pero no elimina archivos que ya estén seguidos por Git.
+3. No subas `instance`, entornos virtuales, archivos `.env`, bases de datos, claves ni copias de seguridad privadas. El ZIP de despliegue preparado excluye expresamente estos datos locales. `.gitignore` ayuda a excluirlos, pero no elimina archivos que ya estén seguidos por Git.
 4. Antes de agregar o subir archivos, revisa `git status --short` y la lista de archivos preparados. No incluyas información privada o credenciales.
 5. Sube el repositorio a GitHub e impórtalo en Vercel siguiendo la configuración siguiente. No guardes credenciales en el repositorio.
-
-Se ha inicializado un repositorio Git local, sin commits ni archivos agregados. No se ha publicado ningún repositorio ni despliegue.
 
 ### Configurar Vercel
 
 1. Crea una base PostgreSQL administrada con conexiones cifradas y consulta los precios, límites de almacenamiento, respaldos y políticas de privacidad del proveedor. Necesitas una base dedicada a esta aplicación y una cuenta que pueda crear tablas. Usa la dirección PostgreSQL indicada por el proveedor, preferiblemente la conexión con agrupador (*pooler*) y con TLS habilitado.
 2. En Vercel, importa el repositorio, selecciona la carpeta del proyecto como raíz y el framework Flask. Antes del primer despliegue configura estas variables en **Settings → Environment Variables**:
    - `DATABASE_URL`: URL completa de PostgreSQL, incluida la configuración TLS requerida por el proveedor.
-   - `SESSION_SECRET`: cadena aleatoria y privada de al menos 32 caracteres. Puedes generarla con `python -c "import secrets; print(secrets.token_hex(32))"` en tu computadora. No la publiques ni la compartas.
+   - `SESSION_SECRET`: cadena aleatoria y privada de al menos 32 caracteres. También se acepta `SECRET_KEY` como alias de compatibilidad. Puedes generarla con `python -c "import secrets; print(secrets.token_hex(32))"` en tu computadora. No la publiques ni la compartas.
 3. Configura las variables en el entorno que corresponda y despliega. Usa una base distinta para producción y para vistas previas; no compartas los datos reales con pruebas. Mantén la misma clave para todas las instancias de un mismo entorno: cambiarla cerrará las sesiones existentes.
 4. Comprueba en el enlace de Vercel el registro e inicio de sesión, el guardado y la descarga de una evidencia, la edición de un caso y el informe. Consulta los registros de Vercel si hay errores. Las pruebas se ejecutaron con PostgreSQL local; la conexión a un servicio administrado y el despliegue público aún no se han probado.
 
