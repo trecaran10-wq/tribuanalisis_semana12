@@ -1,0 +1,12 @@
+[project]
+name = "tribuanalisis-semana12"
+version = "1.0.0"
+requires-python = ">=3.12,<3.15"
+dependencies = [
+    "Flask>=3.0,<4.0",
+    "openpyxl>=3.1,<4.0",
+    "psycopg[binary]>=3.2,<4.0",
+]
+
+[tool.vercel]
+entrypoint = "wsgi:app"

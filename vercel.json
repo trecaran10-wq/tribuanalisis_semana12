@@ -1,0 +1,8 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "wsgi.py": {
+      "includeFiles": "{assets/**,*.html,*.css,*.js,README.md,.gitignore,requirements.txt,pyproject.toml,vercel.json}"
+    }
+  }
+}

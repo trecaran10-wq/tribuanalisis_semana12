@@ -137,7 +137,7 @@ function printProfileDocument(title, sections) {
   window.print();
 }
 $("print-manual").addEventListener("click", () => printProfileDocument("Manual de usuario · Tribuanálisis", [
-  ["Acceso", "Crea una cuenta o inicia sesión. La información se guarda en esta computadora."],
+  ["Acceso", "Crea una cuenta o inicia sesión. La información se guarda en tu cuenta."],
   ["Nuevo análisis", "Selecciona un concepto, registra los datos y adjunta las evidencias. Guarda el borrador y continúa con la revisión de requisitos."],
   ["Cálculo y resultado", "Ingresa el importe no admitido tras tu revisión. La aplicación calcula el reparo; guarda el caso para incluirlo en el historial y en el informe."],
   ["Historial e informe", "Filtra los casos en el historial o expórtalos a Excel. En Informe de reparos selecciona los casos y las secciones, y genera el PDF mediante la impresión del navegador."],
@@ -148,7 +148,7 @@ $("print-credits").addEventListener("click", () => printProfileDocument("Crédit
   ["Proyecto", "Tribuanálisis – Semana 12 · Tributación II · UNIVERSIDAD NACIONAL DE TRUJILLO - FILIAL VALLE JEQUETEPEQUE."],
   ["Docente", "CPC. Marlene Lourdes Altamirano."],
   ["Integrantes", "Chavarrea Tanta Liz Rosmery; Portales Pairazaman Noemi Araceli; Ramos Novoa María Roxana; Terán Cabanillas Treisy Josseph; Vásquez Tarrillo Rut; Vidaurre Rojas Melany Laylin."],
-  ["Sistema", "Equipo Tribuanálisis – Semana 12. Tecnologías: Python (Flask), SQLite, HTML, CSS y JavaScript."]
+  ["Sistema", "Equipo Tribuanálisis – Semana 12. Tecnologías: Python (Flask), SQLite o PostgreSQL, HTML, CSS y JavaScript."]
 ]));
 
 const concepts = [
@@ -852,12 +852,26 @@ async function saveDraft(targetStep) {
   const button = draftStep === 4 ? $("final-save") : draftStep === 3 ? $("save-calculation") : draftStep === 2 ? $("save-review") : $("save-draft");
   button.disabled = true;
   const fields = Object.fromEntries(new FormData(wizardForm).entries());
-  const body = new FormData();
-  body.append("payload", JSON.stringify({ id: draftId, category: draftCategory, fields, kept_files: savedFiles.map((file) => file.id), review: { step: targetStep, items: reviewItems, calculation } }));
-  newFiles.forEach((file) => body.append("files", file));
   savingDraft = true;
   $("analysis-entry").inert = true;
   try {
+    let uploadToken;
+    if (newFiles.length) {
+      const upload = await api("/api/uploads", { method: "POST", body: JSON.stringify({ files: newFiles.map((file) => ({ name: file.name, size: file.size })) }) });
+      uploadToken = upload.token;
+      for (let fileIndex = 0; fileIndex < newFiles.length; fileIndex++) {
+        const file = newFiles[fileIndex];
+        for (let offset = 0, chunkIndex = 0; offset < file.size; offset += upload.chunk_size, chunkIndex++) {
+          await api(`/api/uploads/${uploadToken}/${fileIndex}/${chunkIndex}`, {
+            method: "POST",
+            body: file.slice(offset, offset + upload.chunk_size),
+            headers: { "Content-Type": "application/octet-stream" }
+          });
+        }
+      }
+    }
+    const body = new FormData();
+    body.append("payload", JSON.stringify({ id: draftId, category: draftCategory, fields, kept_files: savedFiles.map((file) => file.id), review: { step: targetStep, items: reviewItems, calculation }, upload_token: uploadToken }));
     const result = await api("/api/drafts", { method: "POST", body });
     draftId = result.id;
     savedFiles = result.files;

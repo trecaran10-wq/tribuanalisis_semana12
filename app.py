@@ -1,9 +1,11 @@
 import json
+import os
 import re
 import secrets
 import sqlite3
 import zipfile
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from io import BytesIO
 from pathlib import Path
@@ -15,11 +17,15 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
+import psycopg
+from database import atomic, connect, initialize_postgres, initialize_uploads, lock_user
+
 ROOT = Path(__file__).resolve().parent
 CATEGORIES = {"Mermas", "Desmedros", "Depreciación", "Cobranza dudosa"}
 MAX_CENTS = 100_000_000_000
 MAX_FILE_SIZE = 10 * 1024 * 1024
 MAX_FILES = 5
+UPLOAD_CHUNK_SIZE = 2 * 1024 * 1024
 DRAFT_FIELDS = {"company", "date", "subject", "unit", "quantity", "unit_cost", "process", "cause", "asset_cost", "annual_expense", "document", "due_date", "receivable", "provision"}
 FILE_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".xls", ".xlsx"}
 REVIEW_KEYS = {
@@ -31,37 +37,40 @@ REVIEW_KEYS = {
 
 
 def create_app(test_config=None):
+    vercel = os.environ.get("VERCEL") == "1" or (test_config is not None and test_config.get("DEPLOYMENT") is True)
     app = Flask(__name__, template_folder=str(ROOT), static_folder=None)
-    
-# Directorio temporal con permisos de escritura en Vercel
-    instance = Path("/tmp") / "tribuanalisis_semana12"
-    app.instance_path = str(instance)
-    instance.mkdir(parents=True, exist_ok=True)
-
-    key_path = instance / ".session-key"
-    if test_config is None:
+    instance = Path(app.instance_path)
+    app.config.update(
+        DATABASE=str(instance / "semana12.db"),
+        DATABASE_URL=os.environ.get("DATABASE_URL") if vercel else None,
+        SECRET_KEY=os.environ.get("SESSION_SECRET") if vercel else None,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=vercel,
+        MAX_CONTENT_LENGTH=52 * 1024 * 1024,
+    )
+    if test_config is not None:
+        app.config.update(test_config)
+    if vercel:
+        if not app.config["DATABASE_URL"] or not app.config["DATABASE_URL"].startswith(("postgresql://", "postgres://")):
+            raise RuntimeError("Configura DATABASE_URL con una base PostgreSQL persistente.")
+        if not app.secret_key or len(app.secret_key) < 32:
+            raise RuntimeError("Configura SESSION_SECRET con al menos 32 caracteres aleatorios.")
+    elif test_config is None:
+        instance.mkdir(parents=True, exist_ok=True)
+        key_path = instance / ".session-key"
         try:
             with key_path.open("x", encoding="utf-8") as key_file:
                 key_file.write(secrets.token_hex(32))
         except FileExistsError:
             pass
         app.secret_key = key_path.read_text(encoding="utf-8")
-    app.config.update(
-        DATABASE=str(instance / "semana12.db"),
-        SESSION_COOKIE_HTTPONLY=True,
-        SESSION_COOKIE_SAMESITE="Lax",
-        MAX_CONTENT_LENGTH=52 * 1024 * 1024,
-    )
-    if test_config:
-        app.config.update(test_config)
     if not app.secret_key:
         raise RuntimeError("No se pudo configurar la clave de sesión.")
 
     def db():
         if "db" not in g:
-            g.db = sqlite3.connect(app.config["DATABASE"])
-            g.db.row_factory = sqlite3.Row
-            g.db.execute("PRAGMA foreign_keys = ON")
+            g.db = connect(app.config["DATABASE"], app.config["DATABASE_URL"])
         return g.db
 
     @app.teardown_appcontext
@@ -71,7 +80,10 @@ def create_app(test_config=None):
             connection.close()
 
     with app.app_context():
-        db().executescript("""
+        if app.config["DATABASE_URL"]:
+            initialize_postgres(db())
+        else:
+            db().executescript("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY,
                 email TEXT NOT NULL UNIQUE,
@@ -116,14 +128,32 @@ def create_app(test_config=None):
                 user_id INTEGER PRIMARY KEY REFERENCES users(id),
                 data TEXT NOT NULL
             );
-        """)
-        if "updated_at" not in {row["name"] for row in db().execute("PRAGMA table_info(cases)")}:
-            db().execute("ALTER TABLE cases ADD COLUMN updated_at TEXT")
-        user_columns = {row["name"] for row in db().execute("PRAGMA table_info(users)")}
-        for column in ("display_name", "registered_at", "last_login"):
-            if column not in user_columns:
-                db().execute(f"ALTER TABLE users ADD COLUMN {column} TEXT")
-        db().commit()
+            """)
+            if "updated_at" not in {row["name"] for row in db().execute("PRAGMA table_info(cases)")}:
+                db().execute("ALTER TABLE cases ADD COLUMN updated_at TEXT")
+            user_columns = {row["name"] for row in db().execute("PRAGMA table_info(users)")}
+            for column in ("display_name", "registered_at", "last_login"):
+                if column not in user_columns:
+                    db().execute(f"ALTER TABLE users ADD COLUMN {column} TEXT")
+            initialize_uploads(db(), False)
+            db().commit()
+
+    def begin_write(connection):
+        lock_user(connection, session["user_id"], bool(app.config["DATABASE_URL"]))
+
+    def upload_cutoff():
+        return (datetime.now(timezone.utc) - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+
+    def streamed_download(data, mimetype, filename):
+        data.seek(0)
+        response = send_file(data, mimetype=mimetype, as_attachment=True, download_name=filename)
+        response.headers.pop("Content-Length", None)
+        response.response = iter(lambda: data.read(64 * 1024), b"")
+        return response
+
+    @app.context_processor
+    def storage_context():
+        return {"remote_storage": bool(app.config["DATABASE_URL"])}
 
     def token():
         if "csrf" not in session:
@@ -202,13 +232,15 @@ def create_app(test_config=None):
                     flash("Las contraseñas no coinciden.")
                 else:
                     try:
-                        cursor = db().execute("INSERT INTO users (email, password_hash, registered_at, last_login) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)", (email, generate_password_hash(password)))
+                        cursor = db().execute("INSERT INTO users (email, password_hash, registered_at, last_login) VALUES (?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) RETURNING id", (email, generate_password_hash(password)))
+                        user_id = cursor.fetchone()["id"]
                         db().commit()
-                    except sqlite3.IntegrityError:
+                    except (sqlite3.IntegrityError, psycopg.errors.UniqueViolation):
+                        db().rollback()
                         flash("Ya existe una cuenta con ese correo.")
                     else:
                         session.clear()
-                        session["user_id"] = cursor.lastrowid
+                        session["user_id"] = user_id
                         return redirect(url_for("index"))
             else:
                 user = db().execute("SELECT id, password_hash FROM users WHERE email = ?", (email,)).fetchone()
@@ -278,12 +310,13 @@ def create_app(test_config=None):
     def project_code():
         archive = BytesIO()
         with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
-            for name in ("app.py", "app.js", "auth.js", "calculation.js", "index.html", "auth.html", "style.css", "requirements.txt", "README.md"):
+            for name in ("app.py", "database.py", "wsgi.py", "pyproject.toml", "vercel.json", ".gitignore", "app.js", "auth.js", "calculation.js", "index.html", "auth.html", "style.css", "requirements.txt", "README.md"):
                 bundle.write(ROOT / name, name)
             for name in ("welcome.png", "checklist.png", "mermas.png", "desmedros.png", "depreciacion.png", "cobranza.png", "informe.png", "historial.png", "guia.png", "perfil.png", "docente.png", "equipo-1.png", "equipo-2.png", "equipo-3.png", "equipo-4.png", "equipo-5.png", "auth-background.png", "plantilla-casos.xlsx"):
                 bundle.write(ROOT / "assets" / name, f"assets/{name}")
-        archive.seek(0)
-        return send_file(archive, mimetype="application/zip", as_attachment=True, download_name="codigo-tribuanalisis.zip")
+        response = streamed_download(archive, "application/zip", "codigo-tribuanalisis.zip")
+        response.headers["Cache-Control"] = "private, no-store"
+        return response
 
     @app.put("/api/report-settings")
     @login_required
@@ -302,7 +335,7 @@ def create_app(test_config=None):
                 or any(type(case_id) is not int or case_id <= 0 for case_id in case_ids)
                 or len(case_ids) != len(set(case_ids))):
             return jsonify(error="Configuración de informe inválida."), 400
-        db().execute("BEGIN IMMEDIATE")
+        begin_write(db())
         owned_ids = {row["id"] for row in db().execute("SELECT id FROM cases WHERE user_id = ?", (session["user_id"],))}
         if not set(case_ids).issubset(owned_ids):
             db().rollback()
@@ -333,6 +366,75 @@ def create_app(test_config=None):
         review = db().execute("SELECT data FROM draft_reviews WHERE draft_id = ?", (draft_id,)).fetchone()
         link = db().execute("SELECT case_id FROM case_drafts WHERE draft_id = ?", (draft_id,)).fetchone()
         return jsonify(id=draft["id"], category=draft["category"], fields=json.loads(draft["fields"]), files=[dict(row) for row in files], review=json.loads(review["data"]) if review else {"step": 1, "items": {}}, case_id=link["case_id"] if link else None)
+
+    @app.post("/api/uploads")
+    @login_required
+    def start_upload():
+        check_csrf()
+        data = request.get_json(silent=True)
+        if not isinstance(data, dict) or set(data) != {"files"} or not isinstance(data["files"], list) or not 1 <= len(data["files"]) <= MAX_FILES:
+            return jsonify(error="La lista de archivos no es válida."), 400
+        files = []
+        for item in data["files"]:
+            if not isinstance(item, dict) or set(item) != {"name", "size"} or not isinstance(item["name"], str):
+                return jsonify(error="La información del archivo no es válida."), 400
+            name = secure_filename(item["name"])
+            if not name or len(name) > 150 or Path(name).suffix.lower() not in FILE_EXTENSIONS:
+                return jsonify(error="Solo se permiten archivos PDF, JPG, PNG, XLS y XLSX con nombres de hasta 150 caracteres."), 400
+            if type(item["size"]) is not int or not 1 <= item["size"] <= MAX_FILE_SIZE:
+                return jsonify(error="Cada archivo debe tener contenido y pesar como máximo 10 MB."), 400
+            files.append({"name": name, "size": item["size"]})
+        connection = db()
+        begin_write(connection)
+        token_value = secrets.token_urlsafe(32)
+        with atomic(connection):
+            connection.execute("DELETE FROM upload_batches WHERE user_id = ?", (session["user_id"],))
+            connection.execute(
+                "INSERT INTO upload_batches (user_id, token, files, created_at) VALUES (?, ?, ?, ?)",
+                (session["user_id"], token_value, json.dumps(files), datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")),
+            )
+        return jsonify(token=token_value, chunk_size=UPLOAD_CHUNK_SIZE)
+
+    @app.post("/api/uploads/<token_value>/<int:file_index>/<int:chunk_index>")
+    @login_required
+    def upload_chunk(token_value, file_index, chunk_index):
+        check_csrf()
+        if request.content_length is not None and request.content_length > UPLOAD_CHUNK_SIZE:
+            return jsonify(error="El fragmento del archivo es demasiado grande."), 413
+        content = request.get_data(cache=False)
+        if len(content) > UPLOAD_CHUNK_SIZE:
+            return jsonify(error="El fragmento del archivo es demasiado grande."), 413
+        connection = db()
+        begin_write(connection)
+        batch = connection.execute(
+            "SELECT files FROM upload_batches WHERE user_id = ? AND token = ? AND created_at >= ?",
+            (session["user_id"], token_value, upload_cutoff()),
+        ).fetchone()
+        if batch is None:
+            return jsonify(error="La carga expiró o no pertenece a tu cuenta. Inténtalo nuevamente."), 404
+        files = json.loads(batch["files"])
+        if file_index >= len(files):
+            return jsonify(error="El archivo de la carga no es válido."), 400
+        expected = min(UPLOAD_CHUNK_SIZE, files[file_index]["size"] - chunk_index * UPLOAD_CHUNK_SIZE)
+        if expected <= 0 or len(content) != expected:
+            return jsonify(error="El fragmento del archivo no es válido."), 400
+        existing = connection.execute(
+            "SELECT chunk_index, content FROM upload_chunks WHERE token = ? AND file_index = ? ORDER BY chunk_index",
+            (token_value, file_index),
+        ).fetchall()
+        if chunk_index < len(existing):
+            if existing[chunk_index]["chunk_index"] == chunk_index and bytes(existing[chunk_index]["content"]) == content:
+                connection.rollback()
+                return jsonify(ok=True)
+            return jsonify(error="El fragmento ya existe con contenido diferente."), 409
+        if chunk_index != len(existing):
+            return jsonify(error="Los fragmentos deben enviarse en orden."), 409
+        with atomic(connection):
+            connection.execute(
+                "INSERT INTO upload_chunks (token, file_index, chunk_index, content) VALUES (?, ?, ?, ?)",
+                (token_value, file_index, chunk_index, content),
+            )
+        return jsonify(ok=True)
 
     @app.post("/api/drafts")
     @login_required
@@ -374,6 +476,9 @@ def create_app(test_config=None):
                 if calculation["tax_rate"] and Decimal(calculation["tax_rate"].replace(",", ".")) > 100:
                     return jsonify(error="La tasa debe estar entre 0 y 100 %."), 400
         uploads = request.files.getlist("files")
+        upload_token = payload.get("upload_token")
+        if upload_token is not None and (not isinstance(upload_token, str) or not re.fullmatch(r"[A-Za-z0-9_-]{43}", upload_token) or uploads):
+            return jsonify(error="La carga de archivos no es válida."), 400
         if len(kept) + len(uploads) > MAX_FILES:
             return jsonify(error="Puedes adjuntar hasta cinco archivos por borrador."), 400
         files = []
@@ -386,6 +491,27 @@ def create_app(test_config=None):
                 return jsonify(error="Cada archivo debe tener contenido y pesar como máximo 10 MB."), 400
             files.append((name, content))
         connection = db()
+        begin_write(connection)
+        if upload_token:
+            batch = connection.execute(
+                "SELECT files FROM upload_batches WHERE user_id = ? AND token = ? AND created_at >= ?",
+                (session["user_id"], upload_token, upload_cutoff()),
+            ).fetchone()
+            if batch is None:
+                return jsonify(error="La carga expiró o no pertenece a tu cuenta. Inténtalo nuevamente."), 400
+            staged_files = json.loads(batch["files"])
+            if len(kept) + len(staged_files) > MAX_FILES:
+                return jsonify(error="Puedes adjuntar hasta cinco archivos por borrador."), 400
+            for index, file in enumerate(staged_files):
+                chunks = connection.execute(
+                    "SELECT chunk_index, content FROM upload_chunks WHERE token = ? AND file_index = ? ORDER BY chunk_index",
+                    (upload_token, index),
+                ).fetchall()
+                content = b"".join(bytes(chunk["content"]) for chunk in chunks)
+                expected_count = (file["size"] + UPLOAD_CHUNK_SIZE - 1) // UPLOAD_CHUNK_SIZE
+                if len(content) != file["size"] or len(chunks) != expected_count or any(chunk["chunk_index"] != position for position, chunk in enumerate(chunks)):
+                    return jsonify(error="La carga está incompleta. Inténtalo nuevamente."), 400
+                files.append((file["name"], content))
         if draft_id is not None:
             row = connection.execute("SELECT id, category FROM drafts WHERE id = ? AND user_id = ?", (draft_id, session["user_id"])).fetchone()
             if row is None:
@@ -403,10 +529,10 @@ def create_app(test_config=None):
                         entry["file_ids"] = [file_id for file_id in entry["file_ids"] if file_id in kept]
         elif kept:
             return jsonify(error="No hay archivos guardados en este borrador."), 400
-        with connection:
+        with atomic(connection):
             if draft_id is None:
-                cursor = connection.execute("INSERT INTO drafts (user_id, category, fields) VALUES (?, ?, ?)", (session["user_id"], payload["category"], json.dumps(fields, ensure_ascii=False)))
-                draft_id = cursor.lastrowid
+                cursor = connection.execute("INSERT INTO drafts (user_id, category, fields) VALUES (?, ?, ?) RETURNING id", (session["user_id"], payload["category"], json.dumps(fields, ensure_ascii=False)))
+                draft_id = cursor.fetchone()["id"]
             else:
                 connection.execute("UPDATE drafts SET category = ?, fields = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?", (payload["category"], json.dumps(fields, ensure_ascii=False), draft_id, session["user_id"]))
                 for file_id in existing - set(kept):
@@ -415,6 +541,8 @@ def create_app(test_config=None):
                 connection.execute("INSERT INTO draft_files (draft_id, filename, content) VALUES (?, ?, ?)", (draft_id, name, content))
             if review is not None:
                 connection.execute("INSERT INTO draft_reviews (draft_id, data) VALUES (?, ?) ON CONFLICT(draft_id) DO UPDATE SET data = excluded.data", (draft_id, json.dumps(review, ensure_ascii=False)))
+            if upload_token:
+                connection.execute("DELETE FROM upload_batches WHERE user_id = ? AND token = ?", (session["user_id"], upload_token))
         saved_files = connection.execute("SELECT id, filename, length(content) AS size FROM draft_files WHERE draft_id = ? ORDER BY id", (draft_id,)).fetchall()
         return jsonify(id=draft_id, files=[dict(row) for row in saved_files])
 
@@ -423,7 +551,7 @@ def create_app(test_config=None):
     def finalize_draft(draft_id):
         check_csrf()
         connection = db()
-        connection.execute("BEGIN IMMEDIATE")
+        begin_write(connection)
         row = connection.execute(
             "SELECT d.category, d.fields, r.data AS review, cd.case_id FROM drafts d JOIN draft_reviews r ON r.draft_id = d.id LEFT JOIN case_drafts cd ON cd.draft_id = d.id WHERE d.id = ? AND d.user_id = ?",
             (draft_id, session["user_id"]),
@@ -466,10 +594,10 @@ def create_app(test_config=None):
             return jsonify(error="Completa el registro y un importe no admitido válido. El gasto debe ser mayor que cero y no superar S/ 1,000,000,000."), 400
         if row["case_id"] is None:
             cursor = connection.execute(
-                "INSERT INTO cases (user_id, category, description, support, expense, deductible, updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+                "INSERT INTO cases (user_id, category, description, support, expense, deductible, updated_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP) RETURNING id",
                 (session["user_id"], item["category"], item["description"].strip(), item["support"].strip(), item["expense"], item["deductible"]),
             )
-            case_id = cursor.lastrowid
+            case_id = cursor.fetchone()["id"]
             connection.execute("INSERT INTO case_drafts (draft_id, case_id) VALUES (?, ?)", (draft_id, case_id))
         else:
             case_id = row["case_id"]
@@ -486,7 +614,7 @@ def create_app(test_config=None):
         row = db().execute("SELECT f.filename, f.content FROM draft_files f JOIN drafts d ON d.id = f.draft_id WHERE d.id = ? AND d.user_id = ? AND f.id = ?", (draft_id, session["user_id"], file_id)).fetchone()
         if row is None:
             return jsonify(error="No se encontró el archivo en tu cuenta."), 404
-        response = send_file(BytesIO(row["content"]), mimetype="application/octet-stream", as_attachment=True, download_name=row["filename"])
+        response = streamed_download(BytesIO(row["content"]), "application/octet-stream", row["filename"])
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["Cache-Control"] = "private, no-store"
         return response
@@ -495,6 +623,7 @@ def create_app(test_config=None):
     @login_required
     def delete_draft(draft_id):
         check_csrf()
+        begin_write(db())
         result = db().execute("DELETE FROM drafts WHERE id = ? AND user_id = ?", (draft_id, session["user_id"]))
         db().commit()
         if not result.rowcount:
@@ -553,8 +682,7 @@ def create_app(test_config=None):
             sheet.column_dimensions[column].width = width
         output = BytesIO()
         workbook.save(output)
-        output.seek(0)
-        response = send_file(output, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", as_attachment=True, download_name="historial-tribuanalisis.xlsx")
+        response = streamed_download(output, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "historial-tribuanalisis.xlsx")
         response.headers["Cache-Control"] = "private, no-store"
         return response
 
@@ -562,6 +690,7 @@ def create_app(test_config=None):
     @login_required
     def delete_case(case_id):
         check_csrf()
+        begin_write(db())
         result = db().execute("DELETE FROM cases WHERE id = ? AND user_id = ?", (case_id, session["user_id"]))
         if not result.rowcount:
             db().rollback()
@@ -597,7 +726,7 @@ def create_app(test_config=None):
             return jsonify(error="No se pudieron importar los casos: los datos anteriores no son válidos."), 400
         connection = db()
         # A write lock makes the one-time import check and insertion atomic.
-        connection.execute("BEGIN IMMEDIATE")
+        begin_write(connection)
         user = connection.execute("SELECT imported FROM users WHERE id = ?", (session["user_id"],)).fetchone()
         if user is None or user["imported"]:
             connection.rollback()
@@ -611,11 +740,5 @@ def create_app(test_config=None):
     return app
 
 
-
-# Instancia de Flask para Vercel
-app = create_app()
-
-# Ejecución local
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8012, debug=False)
-
+    create_app().run(host="127.0.0.1", port=8012, debug=False)

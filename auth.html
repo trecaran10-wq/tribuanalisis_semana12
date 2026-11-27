@@ -28,7 +28,7 @@
         <label id="confirm-label" {% if active != 'register' %}hidden{% endif %}>Confirmar contraseña<input type="password" name="confirm_password" id="confirm-password" minlength="8" maxlength="128" placeholder="Repite tu contraseña" autocomplete="new-password" {% if active == 'register' %}required{% endif %}></label>
         <button type="submit" class="button button-primary full-button" id="auth-submit"><span id="auth-submit-label">{{ 'Crear cuenta' if active == 'register' else 'Ingresar a mi cuenta' }}</span><span aria-hidden="true">→</span></button>
       </form>
-      <p class="auth-footnote"><span aria-hidden="true">♧</span> Tus datos se guardan en esta computadora. No existe recuperación automática de contraseña.</p>
+      <p class="auth-footnote"><span aria-hidden="true">♧</span> {% if remote_storage %}Tus datos se guardan en la base de datos del servicio.{% else %}Tus datos se guardan en esta computadora.{% endif %} No existe recuperación automática de contraseña.</p>
     </section>
   </main>
   <script src="/auth.js"></script>

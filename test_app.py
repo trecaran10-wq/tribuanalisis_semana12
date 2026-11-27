@@ -1,13 +1,22 @@
 import json
+import os
+import secrets
 import sqlite3
 import tempfile
+import threading
+import tomllib
 import unittest
 import zipfile
+from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from io import BytesIO
 from pathlib import Path
+from urllib.parse import parse_qsl, quote, urlencode, urlsplit, urlunsplit
+from unittest.mock import patch
 
-from app import create_app
+import psycopg
+from psycopg import sql
+from app import UPLOAD_CHUNK_SIZE, create_app
 from openpyxl import load_workbook
 
 
@@ -15,11 +24,27 @@ class AccountHistoryTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.app = create_app({
+        config = {
             "TESTING": True,
             "SECRET_KEY": "test-key",
             "DATABASE": str(Path(self.temp.name) / "test.db"),
-        })
+        }
+        test_url = os.environ.get("TEST_DATABASE_URL")
+        if test_url:
+            schema = "tribuanalisis_test_" + secrets.token_hex(8)
+            admin = psycopg.connect(test_url, autocommit=True)
+            admin.execute(sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema)))
+            def cleanup_schema():
+                try:
+                    admin.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
+                finally:
+                    admin.close()
+            self.addCleanup(cleanup_schema)
+            parts = urlsplit(test_url)
+            parameters = parse_qsl(parts.query, keep_blank_values=True)
+            parameters.append(("options", f"-c search_path={schema}"))
+            config["DATABASE_URL"] = urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(parameters, quote_via=quote), parts.fragment))
+        self.app = create_app(config)
         self.client = self.app.test_client()
         self.case = {
             "category": "Mermas",
@@ -43,6 +68,80 @@ class AccountHistoryTests(unittest.TestCase):
     def headers(self, client):
         client.get("/")
         return {"X-CSRF-Token": self.csrf(client)}
+
+    def test_vercel_requires_persistent_storage_and_secret(self):
+        with patch.dict(os.environ, {"VERCEL": "1"}, clear=True):
+            with self.assertRaisesRegex(RuntimeError, "DATABASE_URL"):
+                create_app()
+        with patch.dict(os.environ, {}, clear=True):
+            with self.assertRaisesRegex(RuntimeError, "DATABASE_URL"):
+                create_app({"DEPLOYMENT": True})
+        with patch.dict(os.environ, {"VERCEL": "1", "DATABASE_URL": "postgresql://localhost/test", "SESSION_SECRET": "short"}, clear=True):
+            with self.assertRaisesRegex(RuntimeError, "SESSION_SECRET"):
+                create_app()
+
+    def test_persistence_across_app_instances(self):
+        self.register(self.client, "one@example.com")
+        headers = self.headers(self.client)
+        self.client.post("/api/cases", json=self.case, headers=headers)
+        settings = {key: self.app.config[key] for key in ("DATABASE", "DATABASE_URL", "SECRET_KEY", "TESTING")}
+        second_app = create_app(settings)
+        second = second_app.test_client()
+        second.get("/auth")
+        response = second.post("/auth", data={"csrf": self.csrf(second), "action": "login", "email": "one@example.com", "password": "password123"})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(len(second.get("/api/state").get_json()["cases"]), 1)
+
+    def test_dependency_manifests_match(self):
+        project = Path(__file__).parent
+        with (project / "pyproject.toml").open("rb") as file:
+            dependencies = tomllib.load(file)["project"]["dependencies"]
+        requirements = (project / "requirements.txt").read_text(encoding="utf-8").splitlines()
+        self.assertEqual(set(dependencies), set(requirements))
+
+    def test_deployment_entrypoint_config_with_postgres(self):
+        url = self.app.config["DATABASE_URL"]
+        if not url:
+            self.skipTest("Requiere TEST_DATABASE_URL con una base PostgreSQL de prueba.")
+        with patch.dict(os.environ, {"DATABASE_URL": url, "SESSION_SECRET": "x" * 64}, clear=True):
+            deployed = create_app({"DEPLOYMENT": True, "TESTING": True})
+        self.assertTrue(deployed.config["SESSION_COOKIE_SECURE"])
+        client = deployed.test_client()
+        self.assertIn("base de datos del servicio", client.get("/auth").get_data(as_text=True))
+        response = self.register(client, "deploy@example.com")
+        self.assertIn("Secure", response.headers["Set-Cookie"])
+        self.assertEqual(client.get("/api/state").status_code, 200)
+
+    def test_concurrent_import_and_finalization_are_atomic(self):
+        self.register(self.client, "one@example.com")
+        headers = self.headers(self.client)
+        with self.client.session_transaction() as state:
+            user_id = state["user_id"]
+        def concurrent_requests(path, payload=None):
+            barrier = threading.Barrier(2)
+            def submit():
+                client = self.app.test_client()
+                with client.session_transaction() as state:
+                    state["user_id"] = user_id
+                    state["csrf"] = headers["X-CSRF-Token"]
+                barrier.wait(timeout=10)
+                response = client.post(path, json=payload, headers=headers) if payload is not None else client.post(path, headers=headers)
+                return response.status_code, response.get_json()
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                return list(pool.map(lambda _: submit(), range(2)))
+        imported = concurrent_requests("/api/import", {"cases": [self.case]})
+        self.assertEqual(sorted(status for status, _ in imported), [200, 409])
+        payload = {
+            "category": "Mermas",
+            "fields": {"company": "Empresa", "date": "2026-01-01", "subject": "Insumos", "cause": "Sustento", "quantity": "1", "unit_cost": "10"},
+            "kept_files": [],
+            "review": {"step": 4, "items": {}, "calculation": {"non_admitted": "0", "tax_rate": ""}},
+        }
+        draft = self.client.post("/api/drafts", data={"payload": json.dumps(payload)}, headers=headers).get_json()
+        finalized = concurrent_requests(f"/api/drafts/{draft['id']}/finalize")
+        self.assertEqual([status for status, _ in finalized], [200, 200])
+        self.assertEqual(finalized[0][1]["id"], finalized[1][1]["id"])
+        self.assertEqual(len(self.client.get("/api/state").get_json()["cases"]), 2)
 
     def test_accounts_history_and_isolation(self):
         self.assertEqual(self.client.get("/api/state").status_code, 401)
@@ -253,6 +352,68 @@ class AccountHistoryTests(unittest.TestCase):
         self.assertEqual(self.client.get(f"/api/drafts/{draft_id}/files/{file_id}").status_code, 404)
         self.assertEqual(self.client.delete(f"/api/drafts/{draft_id}", headers=headers).status_code, 200)
         self.assertEqual(self.client.get("/api/drafts").get_json()["drafts"], [])
+
+    def test_chunked_upload_is_atomic_private_and_persistent(self):
+        self.register(self.client, "one@example.com")
+        headers = self.headers(self.client)
+        content = b"x" * (10 * 1024 * 1024)
+        started = self.client.post("/api/uploads", json={"files": [{"name": "prueba.pdf", "size": len(content)}]}, headers=headers)
+        self.assertEqual(started.status_code, 200)
+        token = started.get_json()["token"]
+        second = self.app.test_client()
+        self.register(second, "two@example.com")
+        other_headers = self.headers(second)
+        chunk_url = f"/api/uploads/{token}/0/0"
+        self.assertEqual(second.post(chunk_url, data=content[:UPLOAD_CHUNK_SIZE], headers=other_headers).status_code, 404)
+        payload = {"category": "Mermas", "fields": {}, "kept_files": [], "upload_token": token}
+        self.assertEqual(second.post("/api/drafts", data={"payload": json.dumps(payload)}, headers=other_headers).status_code, 400)
+        self.assertEqual(self.client.post("/api/drafts", data={"payload": json.dumps(payload)}, headers=headers).status_code, 400)
+        self.assertEqual(self.client.post(f"/api/uploads/{token}/0/1", data=content[:UPLOAD_CHUNK_SIZE], headers=headers).status_code, 409)
+        for index, offset in enumerate(range(0, len(content), UPLOAD_CHUNK_SIZE)):
+            chunk = content[offset:offset + UPLOAD_CHUNK_SIZE]
+            self.assertEqual(self.client.post(f"/api/uploads/{token}/0/{index}", data=chunk, headers=headers).status_code, 200)
+        self.assertEqual(self.client.post(chunk_url, data=content[:UPLOAD_CHUNK_SIZE], headers=headers).status_code, 200)
+        self.assertEqual(self.client.post(chunk_url, data=b"y" * UPLOAD_CHUNK_SIZE, headers=headers).status_code, 409)
+        saved = self.client.post("/api/drafts", data={"payload": json.dumps(payload)}, headers=headers)
+        self.assertEqual(saved.status_code, 200)
+        draft = saved.get_json()
+        self.assertEqual(draft["files"][0]["size"], len(content))
+        file_url = f"/api/drafts/{draft['id']}/files/{draft['files'][0]['id']}"
+        self.assertEqual(second.get(file_url).status_code, 404)
+        response = self.client.get(file_url)
+        self.assertEqual(response.data, content)
+        self.assertNotIn("Content-Length", response.headers)
+        self.assertEqual(self.client.post("/api/drafts", data={"payload": json.dumps(payload)}, headers=headers).status_code, 400)
+
+    def test_chunk_upload_rejects_bad_metadata_and_lengths(self):
+        self.register(self.client, "one@example.com")
+        headers = self.headers(self.client)
+        for files in ([], [{"name": "test.exe", "size": 1}], [{"name": "test.pdf", "size": 0}], [{"name": "test.pdf", "size": 10 * 1024 * 1024 + 1}]):
+            self.assertEqual(self.client.post("/api/uploads", json={"files": files}, headers=headers).status_code, 400)
+        started = self.client.post("/api/uploads", json={"files": [{"name": "test.pdf", "size": 2}]}, headers=headers)
+        token = started.get_json()["token"]
+        self.assertEqual(self.client.post(f"/api/uploads/{token}/0/0", data=b"x", headers=headers).status_code, 400)
+        self.assertEqual(self.client.post(f"/api/uploads/{token}/0/0", data=b"x" * (UPLOAD_CHUNK_SIZE + 1), headers=headers).status_code, 413)
+
+    def test_five_maximum_size_files_can_be_saved_together(self):
+        self.register(self.client, "one@example.com")
+        headers = self.headers(self.client)
+        size = 10 * 1024 * 1024
+        files = [{"name": f"file-{index}.pdf", "size": size} for index in range(5)]
+        start = self.client.post("/api/uploads", json={"files": files}, headers=headers).get_json()
+        chunk = b"x" * UPLOAD_CHUNK_SIZE
+        for file_index in range(5):
+            for chunk_index in range(size // UPLOAD_CHUNK_SIZE):
+                response = self.client.post(f"/api/uploads/{start['token']}/{file_index}/{chunk_index}", data=chunk, headers=headers)
+                self.assertEqual(response.status_code, 200)
+        payload = {"category": "Mermas", "fields": {}, "kept_files": [], "upload_token": start["token"]}
+        response = self.client.post("/api/drafts", data={"payload": json.dumps(payload)}, headers=headers)
+        self.assertEqual(response.status_code, 200)
+        draft = response.get_json()
+        self.assertEqual([(file["filename"], file["size"]) for file in draft["files"]], [(file["name"], size) for file in files])
+        downloaded = self.client.get(f"/api/drafts/{draft['id']}/files/{draft['files'][-1]['id']}")
+        self.assertEqual(downloaded.data, chunk * (size // UPLOAD_CHUNK_SIZE))
+        downloaded.close()
 
     def test_draft_validation_and_limits(self):
         self.register(self.client, "one@example.com")
